@@ -1,52 +1,49 @@
 import subprocess
 import time
-import pyautogui
+import os
+import re
+import cv2
+import pyautogui 
+from typing import List, Optional
 
-pyautogui.FAILSAFE = False
+# ================== CONFIGURATION ==================
+ADB_PATH = "adb"  # Ensure this is in your System PATH
+FAILSAFE = False
+__version__ = "0.1.4"
 
-ADB_PATH = "adb"  # Example: r"C:\platform-tools\adb.exe"
+COMMON_PORTS = [
+    5554, 5555, 5556, 5557,   # Generic / BlueStacks
+    62001, 62025,             # Nox
+    21503, 21513,             # MeMu
+    7555,                     # Genymotion / MuMu
+]
 
-__version__ = "0.1.0"
+# ================== CORE EXECUTION ==================
 
-
-# ================== CORE ==================
-
-def _run(cmd, wait=0):
-    """
-    Executes an ADB command and returns stdout output.
-    """
-    result = subprocess.run(
-        f'{ADB_PATH} {cmd}',
-        shell=True,
-        capture_output=True,
-        text=True
-    )
-
-    if wait > 0:
-        time.sleep(wait)
-
-    if result.stderr:
-        print("ADB ERROR:", result.stderr.strip())
-
-    return result.stdout.strip()
-
+def _run(cmd: str, wait: float = 0) -> str:
+    """Executes an ADB command and returns stdout."""
+    try:
+        result = subprocess.run(
+            f'{ADB_PATH} {cmd}',
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+        if wait > 0:
+            time.sleep(wait)
+        if result.stderr:
+            print(f"ADB ERROR: {result.stderr.strip()}")
+        return result.stdout.strip()
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # ================== CONNECTION ==================
 
-COMMON_PORTS = [
-    5554, 5555, 5556, 5557,   # BlueStacks
-    62001, 62025,            # Nox
-    21503, 21513,            # MeMu
-    7555,                    # Genymotion
-]
-
-
-def connect(port=5555, ip="127.0.0.1"):
+def connect( ip="127.0.0.1", port=5555):
     """
     Connects to a specific ADB device.
     """
     return _run(f"connect {ip}:{port}")
-
 
 def disconnect():
     """
@@ -55,198 +52,181 @@ def disconnect():
     return _run("disconnect")
 
 
-def devices():
+def discover_services() -> List[str]:
     """
-    Lists connected ADB devices.
+    Uses ADB mDNS to find active ADB services on the network/local machine.
+    Returns a list of 'IP:PORT' strings.
     """
-    return _run("devices")
+    output = _run("mdns services")
+    # Regex to find patterns like 127.0.0.1:5555
+    pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}:\d+\b'
+    services = re.findall(pattern, output)
+    return list(set(services))
 
-
-def get_connected_devices():
-    """
-    Returns a list of connected device IDs.
-    """
+def get_connected_devices() -> List[str]:
+    """Returns a list of currently connected device IDs."""
     out = _run("devices")
     lines = out.splitlines()
-    result = []
+    return [line.split("\t")[0] for line in lines if "\tdevice" in line]
 
-    for line in lines:
-        if "\tdevice" in line:
-            result.append(line.split("\t")[0])
-
-    return result
-
-
-def smart_connect(start_port=5555, end_port=5565, ip="127.0.0.1"):
+def smart_connect() -> Optional[str]:
     """
-    Automatically scans ports and connects to the first available device.
+    The 'Brain' of the connection:
+    1. Checks for already active connections.
+    2. Uses mDNS to discover services automatically.
+    3. Falls back to scanning common emulator ports if discovery fails.
     """
-    print("🔍 Checking existing ADB connections...")
+    print("🔍 [SmartConnect] Checking existing connections...")
+    active = get_connected_devices()
+    if active:
+        print(f"✅ Already connected to: {active[0]}")
+        return active[0]
 
-    devices = get_connected_devices()
-    if devices:
-        print(f"✅ Already connected: {devices[0]}")
-        return devices[0]
+    print("📡 [SmartConnect] Discovering ADB services via mDNS...")
+    services = discover_services()
+    if services:
+        for service in services:
+            print(f"🔗 Found service! Attempting to connect: {service}")
+            _run(f"connect {service}")
+            time.sleep(0.5)
+            if get_connected_devices():
+                return service
 
-    print("⚠️ No devices found, scanning ports...")
+    print("⚠️ [SmartConnect] No services found. Using fallback port scan...")
+    for port in COMMON_PORTS:
+        target = f"127.0.0.1:{port}"
+        _run(f"connect {target}")
+        if get_connected_devices():
+            print(f"🎯 Connected to fallback: {target}")
+            return target
 
-    for port in range(start_port, end_port + 1):
-        _run(f"connect {ip}:{port}")
-        time.sleep(0.4)
-
-        devices = get_connected_devices()
-        if devices:
-            print(f"🎯 Connected to {devices[0]}")
-            return devices[0]
-
-    print("❌ No emulator found")
+    print("❌ [SmartConnect] Failed to find any device.")
     return None
 
+def disconnect():
+    """Disconnects all ADB devices."""
+    return _run("disconnect")
 
-def smart_connect_fallback(ip="127.0.0.1"):
-    """
-    Tries common emulator ports before scanning range.
-    """
-    for port in COMMON_PORTS:
-        _run(f"connect {ip}:{port}")
-        time.sleep(0.3)
+# ================== INTERACTION ==================
 
-    return smart_connect(ip=ip)
-
-
-# ================== KEYS ==================
-
-def home(wait=0):
-    """Press HOME key."""
-    return _run("shell input keyevent KEYCODE_HOME", wait)
-
-
-def back(wait=0):
-    """Press BACK key."""
-    return _run("shell input keyevent KEYCODE_BACK", wait)
-
-
-def recent(wait=0):
-    """Open recent apps."""
-    return _run("shell input keyevent KEYCODE_APP_SWITCH", wait)
-
-
-# ================== TOUCH ==================
-
-def tap(x, y, wait=0):
-    """Tap screen at (x, y)."""
+def tap(x: int, y: int, wait: float = 0):
+    """Taps the screen at (x, y)."""
     return _run(f"shell input tap {x} {y}", wait)
 
-
 def swipe(x1, y1, x2, y2, duration=300, wait=0):
-    """Swipe from point A to B."""
-    return _run(
-        f"shell input swipe {x1} {y1} {x2} {y2} {duration}",
-        wait
-    )
+    """Swipes from point A to point B."""
+    return _run(f"shell input swipe {x1} {y1} {x2} {y2} {duration}", wait)
 
-
-# ================== TEXT ==================
-
-def text(msg, wait=0):
-    """
-    Inputs text safely into the device.
-    """
+def text(msg: str, wait: float = 0):
+    """Inputs text safely (replaces spaces with %s)."""
     safe = msg.replace(" ", "%s")
     return _run(f'shell input text "{safe}"', wait)
 
+def press_key(keycode: str, wait: float = 0):
+    """Sends a specific key event."""
+    return _run(f"shell input keyevent {keycode}", wait)
+
+def home(wait=0): return press_key("KEYCODE_HOME", wait)
+def back(wait=0): return press_key("KEYCODE_BACK", wait)
+def recent(wait=0): return press_key("KEYCODE_APP_SWITCH", wait)
 
 # ================== APPS ==================
 
-def open_app(package, wait=0):
-    """
-    Launch an Android app by package name.
-    """
-    return _run(
-        f"shell monkey -p {package} -c android.intent.category.LAUNCHER 1",
-        wait
-    )
+def open_app(package: str, wait: float = 0):
+    """Launches an app by package name."""
+    return _run(f"shell monkey -p {package} -c android.intent.category.LAUNCHER 1", wait)
 
-
-def close_app(package, wait=0):
-    """
-    Force-stop an Android app.
-    """
+def close_app(package: str, wait: float = 0):
+    """Force-stops an app."""
     return _run(f"shell am force-stop {package}", wait)
-
 
 # ================== SCREENSHOT ==================
 
-def screenshot(path="screen.png", wait=0):
-    """
-    Takes a screenshot using exec-out (fast & clean).
-    """
+def screenshot(path: str = "screen.png", wait: float = 0) -> str:
+    """Takes a screenshot using exec-out (fast)."""
     with open(path, "wb") as f:
-        subprocess.run(
-            f'{ADB_PATH} exec-out screencap -p',
-            shell=True,
-            stdout=f
-        )
+        subprocess.run(f'{ADB_PATH} exec-out screencap -p', shell=True, stdout=f)
+    if wait > 0: time.sleep(wait)
+    return path
 
-    if wait > 0:
-        time.sleep(wait)
-
+def screencap(coords:tuple[int,int,int,int], path="crop.png"):
+    x1, y1, x2, y2 = coords
+    img = cv2.imread(screenshot("bro_don't_delete_me.png"))
+    os.remove("bro_don't_delete_me.png")
+    img_cropped = img[y1:y2, x1:x2]
+    cv2.imwrite(path, img_cropped)
     return path
 
 
-def pull_screenshot(path="screen.png", wait=0):
-    """
-    Windows-safe screenshot method using screencap + pull.
-    """
-    remote = "/sdcard/__tmp_screen.png"
+# ================== VISUAL ==================
 
-    subprocess.run([ADB_PATH, "shell", "screencap", "-p", remote])
-    subprocess.run([ADB_PATH, "pull", remote, path])
-    subprocess.run([ADB_PATH, "shell", "rm", remote])
-
-    if wait:
-        time.sleep(wait)
-
-    return path
+def locate_image_on_screen_and_tap_at_center(template_path: str, confidence: float = 0.8):
+    """Finds image on screen and taps its center if confidence is high enough."""
+    success, coords = locate_image_on_screen(template_path,confidence)
+    if success != False:
+        x, y = coords
+        tap(x, y)
+    return success
 
 
-def safe_screenshot(path="screen.png", delay=0.3):
-    """
-    Screenshot with delay (useful after animations).
-    """
-    time.sleep(delay)
-    return screenshot(path)
+def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:tuple[int,int,int,int] | None = None):
+    """Finds image on screen and give its center if confidence is high enough."""
+    temp_img_name="temp_view.png"
+    img_path = screenshot(temp_img_name) if croppedCoords == None else screencap(croppedCoords,temp_img_name)
+    time.sleep(0.1)
+    img = cv2.imread(img_path)
+    
+    if os.path.exists(img_path): os.remove(img_path)
+    time.sleep(0.2)
+    template = cv2.imread(template_path)
+    if img is None or template is None:
+        return False, None
 
+    res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    
+    if max_val >= confidence:
+        h, w, _ = template.shape
+        cx = max_loc[0] + (w // 2)
+        cy = max_loc[1] + (h // 2)
+        return True, (cx, cy)
+    return False, None
+    
+    
 
-# ================== ZOOM (EMULATOR KEYS) ==================
+# ================== ZOOM (BOT FRIENDLY) ==================
 
 def zoom_out(key="S", hold=0.7):
-    """Zoom out using emulator hotkey."""
+    """Standard zoom out."""
     pyautogui.keyDown(key)
     time.sleep(hold)
     pyautogui.keyUp(key)
-
 
 def zoom_in(key="B", hold=0.7):
-    """Zoom in using emulator hotkey."""
+    """Standard zoom in."""
     pyautogui.keyDown(key)
     time.sleep(hold)
     pyautogui.keyUp(key)
 
-
 def human_zoom_out(key="S"):
-    """Human-like zoom out."""
+    """Human-like multi-tap zoom out."""
     for t in (0.4, 0.3):
         pyautogui.keyDown(key)
         time.sleep(t)
         pyautogui.keyUp(key)
         time.sleep(0.2)
-
 
 def human_zoom_in(key="B"):
-    """Human-like zoom in."""
+    """Human-like multi-tap zoom in."""
     for t in (0.4, 0.3):
         pyautogui.keyDown(key)
         time.sleep(t)
         pyautogui.keyUp(key)
         time.sleep(0.2)
+
+# ================== SERVER CONTROL ==================
+
+def kill_server(): return _run("kill-server")
+def start_server(): return _run("start-server")
+def adb_reconnect(): return _run("reconnect")
+def adb_reconnect_device(): return _run("reconnect device")
