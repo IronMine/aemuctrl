@@ -214,6 +214,9 @@ def get_image_color_from_image(image: cv2.MatLike | None):
 def get_color_on_screen(croppedCoords:ImageCroppingCoords):
     return get_image_color_from_path(screencap(croppedCoords,"temp_get_color_on_screen.png"))
 
+def get_color_from_image(croppedCoords:ImageCroppingCoords,image_path: str):
+    return get_image_color_from_image(crop_screenshot(croppedCoords,image_path))
+
 def compare_two_colors(current_color: ColorRGB,compared_color:ColorRGB):
     return np.array_equal(current_color,compared_color)
 
@@ -243,7 +246,7 @@ def compare_color_from_screenshot_and_tap(compared_color: ColorRGB,croppedCoords
     return compare_result
 
 def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str):
-    return compare_two_colors(get_image_color_from_image(crop_screenshot(croppedCoords,screenshot_path)),compared_color)
+    return compare_two_colors(get_color_from_image(croppedCoords,screenshot_path),compared_color)
 
 def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
     return compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
