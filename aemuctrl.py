@@ -159,6 +159,11 @@ def crop_screenshot(coords:ImageCroppingCoords,path:str):
     img = cv2.imread(path)
     return img[y1:y2, x1:x2]
 
+def save_crop_screenshot(coords:ImageCroppingCoords,path:str,saved_path:str):
+    """Save a cropped screenshot."""
+    cv2.imwrite(saved_path, crop_screenshot(coords,path))
+    return saved_path
+
 def screencap(coords:ImageCroppingCoords, path="crop.png"):
     """Takes a screenshot and crop it."""
     temp_img_name="bro_don't_delete_me.png"
