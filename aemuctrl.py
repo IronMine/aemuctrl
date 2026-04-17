@@ -3,13 +3,14 @@ import time
 import os
 import re
 import cv2
-import pyautogui 
+import pyautogui
+import numpy as np
 from typing import List, Optional
 
 # ================== CONFIGURATION ==================
 ADB_PATH = "adb"  # Ensure this is in your System PATH
 FAILSAFE = False
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 COMMON_PORTS = [
     5554, 5555, 5556, 5557,   # Generic / BlueStacks
@@ -19,6 +20,7 @@ COMMON_PORTS = [
 ]
 
 type ImageCroppingCoords = tuple[int,int,int,int]
+type ColorRGB = tuple[int,int,int]
 
 # ================== CORE EXECUTION ==================
 
@@ -151,26 +153,35 @@ def screenshot(path: str = "screen.png", wait: float = 0) -> str:
     if wait > 0: time.sleep(wait)
     return path
 
+def crop_screenshot(coords:ImageCroppingCoords,path:str):
+    """Crop a screenshot."""
+    x1, y1, x2, y2 = coords
+    img = cv2.imread(path)
+    return img[y1:y2, x1:x2]
+
 def screencap(coords:ImageCroppingCoords, path="crop.png"):
     """Takes a screenshot and crop it."""
-    x1, y1, x2, y2 = coords
-    img = cv2.imread(screenshot("bro_don't_delete_me.png"))
-    os.remove("bro_don't_delete_me.png")
-    img_cropped = img[y1:y2, x1:x2]
-    cv2.imwrite(path, img_cropped)
+    temp_img_name="bro_don't_delete_me.png"
+    cv2.imwrite(path, crop_screenshot(coords,screenshot(temp_img_name)))
+    if os.path.exists(temp_img_name) : os.remove(temp_img_name)
     return path
-
 
 # ================== VISUAL ==================
 
-def locate_image_on_screen_and_tap_at_center(template_path: str, confidence: float = 0.8):
+def __get_dominant_color_from_rgb_array(a):
+    """Return a tuple with RGB value of the dominant color in image"""
+    a2D = a.reshape(-1,a.shape[-1])
+    col_range = (256, 256, 256) # generically : a2D.max(0)+1
+    a1D = np.ravel_multi_index(a2D.T, col_range)
+    return tuple(map(int, np.unravel_index(np.bincount(a1D).argmax(), col_range)))
+
+def locate_on_screen_and_tap_on_center(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None):
     """Finds image on screen and taps its center if confidence is high enough."""
-    success, coords = locate_image_on_screen(template_path,confidence)
+    success, coords = locate_image_on_screen(template_path,confidence,croppedCoords)
     if success != False:
         x, y = coords
         tap(x, y)
     return success
-
 
 def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None):
     """Finds image on screen and give its center if confidence is high enough."""
@@ -187,7 +198,6 @@ def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCo
 
     res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(res)
-    
     if max_val >= confidence:
         h, w, _ = template.shape
         cx = max_loc[0] + (w // 2)
@@ -195,7 +205,56 @@ def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCo
         return True, (cx, cy)
     return False, None
     
+def get_image_color_from_path(image_path: str): get_image_color_from_image(cv2.imread(image_path))
+
+def get_image_color_from_image(image: cv2.MatLike | None): __get_dominant_color_from_rgb_array(image[...,::-1])
     
+def get_color_on_screen(croppedCoords:ImageCroppingCoords | None = None): get_image_color_from_path(screencap(croppedCoords,"temp_get_color_on_screen.png"))
+
+def compare_two_colors(current_color: ColorRGB,compared_color:ColorRGB): np.array_equal(current_color,compared_color)
+
+def compare_color_on_screen(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords):
+    """Finds the dominant color on screen and compare it with a known color."""
+    temp_img_name="temp_crop.png"
+    img_path = screencap(croppedCoords,temp_img_name)
+    current_color = get_image_color_from_path(temp_img_name)
+    if os.path.exists(temp_img_name): os.remove(img_path)
+    return compare_two_colors(current_color,compared_color)
+
+def compare_color_on_screen_and_tap(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,on_same:bool=True):
+    """Finds the dominant color on screen and compare it with a known color and tap on its center if bool equals."""
+    temp_img_name="temp_compare_color_on_screen_and_tap.png"
+    img_path = screenshot(temp_img_name)
+    compare_result = compare_color_from_screenshot_and_tap(compared_color,croppedCoords,img_path,on_same)
+    if os.path.exists(temp_img_name): os.remove(img_path)
+    return compare_result
+
+def compare_color_from_screenshot_and_tap(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,force_img_path:str,on_same:bool=True):
+    """Finds the dominant color from screenshot and compare it with a known color and tap on its center if bool equals."""
+    compare_result=compare_color_from_screenshot(compared_color,croppedCoords,force_img_path) == on_same
+    if compare_result:
+        x=croppedCoords[0]+((croppedCoords[2]-croppedCoords[0])//2)
+        y=croppedCoords[3]+((croppedCoords[1]-croppedCoords[3])//2)
+        tap(x,y)
+    return compare_result
+
+def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str): compare_two_colors(get_image_color_from_image(crop_screenshot(croppedCoords,screenshot_path)),compared_color)
+
+def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None): compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
+    
+def compare_colors_on_same_screen_and_tap_not_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
+    compare_colors_on_same_screen_and_tap(compared_color_and_coords,False,force_img_path)
+
+def compare_colors_on_same_screen_and_tap(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],on_same:bool,force_img_path:str| None =None):
+    """Compare colors on screen and compare it with a known color and tap on its center if bool equals."""
+    temp_img_name="temp_compare_colors_on_same_screen.png"
+    if force_img_path == None: 
+        img_path = screenshot(temp_img_name)
+    else:
+        img_path = force_img_path
+    for color_coords_pair in compared_color_and_coords:
+        compare_color_from_screenshot_and_tap(color_coords_pair[0],color_coords_pair[1],force_img_path,on_same) 
+    if os.path.exists(temp_img_name) and force_img_path == None: os.remove(img_path)
 
 # ================== ZOOM (BOT FRIENDLY) ==================
 
