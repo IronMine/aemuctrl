@@ -211,7 +211,7 @@ def get_image_color_from_path(image_path: str):
 def get_image_color_from_image(image: cv2.MatLike | None):
     return __get_dominant_color_from_rgb_array(image[...,::-1])
     
-def get_color_on_screen(croppedCoords:ImageCroppingCoords | None = None):
+def get_color_on_screen(croppedCoords:ImageCroppingCoords):
     return get_image_color_from_path(screencap(croppedCoords,"temp_get_color_on_screen.png"))
 
 def compare_two_colors(current_color: ColorRGB,compared_color:ColorRGB):
