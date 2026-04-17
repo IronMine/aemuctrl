@@ -18,6 +18,8 @@ COMMON_PORTS = [
     7555,                     # Genymotion / MuMu
 ]
 
+type ImageCroppingCoords = tuple[int,int,int,int]
+
 # ================== CORE EXECUTION ==================
 
 def _run(cmd: str, wait: float = 0) -> str:
@@ -149,7 +151,8 @@ def screenshot(path: str = "screen.png", wait: float = 0) -> str:
     if wait > 0: time.sleep(wait)
     return path
 
-def screencap(coords:tuple[int,int,int,int], path="crop.png"):
+def screencap(coords:ImageCroppingCoords, path="crop.png"):
+    """Takes a screenshot and crop it."""
     x1, y1, x2, y2 = coords
     img = cv2.imread(screenshot("bro_don't_delete_me.png"))
     os.remove("bro_don't_delete_me.png")
@@ -169,7 +172,7 @@ def locate_image_on_screen_and_tap_at_center(template_path: str, confidence: flo
     return success
 
 
-def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:tuple[int,int,int,int] | None = None):
+def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None):
     """Finds image on screen and give its center if confidence is high enough."""
     temp_img_name="temp_view.png"
     img_path = screenshot(temp_img_name) if croppedCoords == None else screencap(croppedCoords,temp_img_name)
