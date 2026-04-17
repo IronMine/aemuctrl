@@ -253,6 +253,12 @@ def compare_color_from_screenshot_and_tap(compared_color: ColorRGB,croppedCoords
 def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str):
     return compare_two_colors(get_color_from_image(croppedCoords,screenshot_path),compared_color)
 
+def compare_colors_from_same_screenshot(compared_colors: dict[str, ColorRGB],croppedCoords:ImageCroppingCoords,screenshot_path:str,on_same:bool=True)->tuple(bool,str|None):
+    for compared_color_key in compared_colors:
+        if compare_two_colors(get_color_from_image(croppedCoords,screenshot_path),compared_colors[compared_color_key]) == on_same:
+            return (True,compared_color_key)
+    return (False,None)
+
 def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
     return compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
     
