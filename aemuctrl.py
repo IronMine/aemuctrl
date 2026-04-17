@@ -205,13 +205,17 @@ def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCo
         return True, (cx, cy)
     return False, None
     
-def get_image_color_from_path(image_path: str): get_image_color_from_image(cv2.imread(image_path))
+def get_image_color_from_path(image_path: str):
+    return get_image_color_from_image(cv2.imread(image_path))
 
-def get_image_color_from_image(image: cv2.MatLike | None): __get_dominant_color_from_rgb_array(image[...,::-1])
+def get_image_color_from_image(image: cv2.MatLike | None):
+    return __get_dominant_color_from_rgb_array(image[...,::-1])
     
-def get_color_on_screen(croppedCoords:ImageCroppingCoords | None = None): get_image_color_from_path(screencap(croppedCoords,"temp_get_color_on_screen.png"))
+def get_color_on_screen(croppedCoords:ImageCroppingCoords | None = None):
+    return get_image_color_from_path(screencap(croppedCoords,"temp_get_color_on_screen.png"))
 
-def compare_two_colors(current_color: ColorRGB,compared_color:ColorRGB): np.array_equal(current_color,compared_color)
+def compare_two_colors(current_color: ColorRGB,compared_color:ColorRGB):
+    return np.array_equal(current_color,compared_color)
 
 def compare_color_on_screen(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords):
     """Finds the dominant color on screen and compare it with a known color."""
@@ -238,9 +242,11 @@ def compare_color_from_screenshot_and_tap(compared_color: ColorRGB,croppedCoords
         tap(x,y)
     return compare_result
 
-def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str): compare_two_colors(get_image_color_from_image(crop_screenshot(croppedCoords,screenshot_path)),compared_color)
+def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str):
+    return compare_two_colors(get_image_color_from_image(crop_screenshot(croppedCoords,screenshot_path)),compared_color)
 
-def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None): compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
+def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
+    return compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
     
 def compare_colors_on_same_screen_and_tap_not_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
     compare_colors_on_same_screen_and_tap(compared_color_and_coords,False,force_img_path)
