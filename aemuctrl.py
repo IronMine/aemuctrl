@@ -188,23 +188,25 @@ def __get_dominant_color_from_rgb_array(a):
     a1D = np.ravel_multi_index(a2D.T, col_range)
     return tuple(map(int, np.unravel_index(np.bincount(a1D).argmax(), col_range)))
 
-def locate_on_screen_and_tap_on_center(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None):
+def locate_on_screen_and_tap_on_center(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None,force_img_path:str | None = None ):
     """Finds image on screen and taps its center if confidence is high enough."""
-    success, coords = locate_image_on_screen(template_path,confidence,croppedCoords)
+    success, coords = locate_image_on_screen(template_path,confidence,croppedCoords,force_img_path)
     if success != False:
         x, y = coords
         tap(x, y)
     return success
 
-def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None):
+def locate_image_on_screen(template_path: str, confidence: float = 0.8,croppedCoords:ImageCroppingCoords | None = None,force_img_path:str | None = None):
     """Finds image on screen and give its center if confidence is high enough."""
-    temp_img_name="temp_view.png"
-    img_path = screenshot(temp_img_name) if croppedCoords == None else screencap(croppedCoords,temp_img_name)
-    time.sleep(0.1)
-    img = cv2.imread(img_path)
-    
-    if os.path.exists(img_path): os.remove(img_path)
-    time.sleep(0.2)
+    if force_img_path == None:
+        temp_img_name="temp_view.png"
+        img_path = screenshot(temp_img_name) if croppedCoords == None else screencap(croppedCoords,temp_img_name)
+        time.sleep(0.1)
+        img = cv2.imread(img_path)
+        if os.path.exists(img_path): os.remove(img_path)
+        time.sleep(0.2)
+    else:
+        img = cv2.imread(force_img_path)
     template = cv2.imread(template_path)
     if img is None or template is None:
         return False, None
