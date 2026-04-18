@@ -117,6 +117,14 @@ def tap(x: int, y: int, wait: float = 0):
     """Taps the screen at (x, y)."""
     return _run(f"shell input tap {x} {y}", wait)
 
+def hold_tap(x: int, y: int, wait: float = 0,duration=1000):
+    swipe(x,y,x,y,duration)
+    if wait > 0: time.sleep(wait)
+
+def hold_or_tap(x: int, y: int, hold:bool= False,wait: float = 0,hold_duration=1000):
+    hold_tap(x,y,wait,hold_duration) if hold else tap(x,y,wait)
+    if wait > 0: time.sleep(wait)
+
 def swipe(x1, y1, x2, y2, duration=300, wait=0):
     """Swipes from point A to point B."""
     return _run(f"shell input swipe {x1} {y1} {x2} {y2} {duration}", wait)
