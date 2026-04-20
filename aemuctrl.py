@@ -245,19 +245,36 @@ def compare_color_on_screen(compared_color: ColorRGB,croppedCoords:ImageCropping
 
 def compare_color_on_screen_and_tap(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,on_same:bool=True):
     """Finds the dominant color on screen and compare it with a known color and tap on its center if bool equals."""
+    return compare_color_on_screen_and_tap_or_hold(compared_color,croppedCoords,on_same,False)
+
+def compare_color_on_screen_and_hold(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,on_same:bool=True,hold_duration:int|None=None):
+    """Finds the dominant color on screen and compare it with a known color and hold on its center if bool equals."""
+    return compare_color_on_screen_and_tap_or_hold(compared_color,croppedCoords,on_same,True,hold_duration)
+
+def compare_color_on_screen_and_tap_or_hold(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,on_same:bool=True,hold:bool=False,hold_duration:int|None=None):
+    """Finds the dominant color on screen and compare it with a known color and tap or hold on its center if bool equals."""
     temp_img_name="temp_compare_color_on_screen_and_tap.png"
     img_path = screenshot(temp_img_name)
-    compare_result = compare_color_from_screenshot_and_tap(compared_color,croppedCoords,img_path,on_same)
+    compare_result = compare_color_from_screenshot_and_tap_or_hold(compared_color,croppedCoords,img_path,on_same,hold,hold_duration)
     if os.path.exists(temp_img_name): os.remove(img_path)
     return compare_result
 
+
 def compare_color_from_screenshot_and_tap(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,force_img_path:str,on_same:bool=True):
     """Finds the dominant color from screenshot and compare it with a known color and tap on its center if bool equals."""
+    return compare_color_from_screenshot_and_tap_or_hold(compared_color,croppedCoords,force_img_path,on_same,False)
+
+def compare_color_from_screenshot_and_hold(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,force_img_path:str,on_same:bool=True,hold_duration:int|None=None):
+    """Finds the dominant color from screenshot and compare it with a known color and hold on its center if bool equals."""
+    return compare_color_from_screenshot_and_tap_or_hold(compared_color,croppedCoords,force_img_path,on_same,True,hold_duration)
+
+def compare_color_from_screenshot_and_tap_or_hold(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,force_img_path:str,on_same:bool=True,hold:bool=False,hold_duration:int|None=None):
+    """Finds the dominant color from screenshot and compare it with a known color and tap or hold on its center if bool equals."""
     compare_result=compare_color_from_screenshot(compared_color,croppedCoords,force_img_path) == on_same
     if compare_result:
         x=croppedCoords[0]+((croppedCoords[2]-croppedCoords[0])//2)
         y=croppedCoords[3]+((croppedCoords[1]-croppedCoords[3])//2)
-        tap(x,y)
+        hold_or_tap(x,y,hold,0,hold_duration)
     return compare_result
 
 def compare_color_from_screenshot(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,screenshot_path:str):
