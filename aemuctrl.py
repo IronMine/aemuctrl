@@ -257,7 +257,7 @@ def compare_color_on_screen_and_hold(compared_color: ColorRGB,croppedCoords:Imag
 
 def compare_color_on_screen_and_tap_or_hold(compared_color: ColorRGB,croppedCoords:ImageCroppingCoords,on_same:bool=True,hold:bool=False,hold_duration:int|None=None):
     """Finds the dominant color on screen and compare it with a known color and tap or hold on its center if bool equals."""
-    temp_img_name="temp_compare_color_on_screen_and_tap.png"
+    temp_img_name="compare_color_on_screen_and_tap_or_hold.png"
     img_path = screenshot(temp_img_name)
     compare_result = compare_color_from_screenshot_and_tap_or_hold(compared_color,croppedCoords,img_path,on_same,hold,hold_duration)
     if os.path.exists(temp_img_name): os.remove(img_path)
@@ -290,22 +290,25 @@ def compare_colors_from_same_screenshot(compared_colors: dict[str, ColorRGB],cro
             return (True,compared_color_key)
     return (False,None)
 
-def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
+def compare_colors_on_same_screen_and_tap_if_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None)-> tuple(bool,list[int]):
     return compare_colors_on_same_screen_and_tap(compared_color_and_coords,True,force_img_path)
     
-def compare_colors_on_same_screen_and_tap_not_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None):
-    compare_colors_on_same_screen_and_tap(compared_color_and_coords,False,force_img_path)
+def compare_colors_on_same_screen_and_tap_not_same(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],force_img_path:str| None =None)-> tuple(bool,list[int]):
+    return compare_colors_on_same_screen_and_tap(compared_color_and_coords,False,force_img_path)
 
-def compare_colors_on_same_screen_and_tap(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],on_same:bool,force_img_path:str| None =None):
+def compare_colors_on_same_screen_and_tap(compared_color_and_coords: list[tuple[ColorRGB,ImageCroppingCoords]],on_same:bool,force_img_path:str| None =None)-> tuple(bool,list[int]):
     """Compare colors on screen and compare it with a known color and tap on its center if bool equals."""
     temp_img_name="temp_compare_colors_on_same_screen.png"
+    ids = list()
     if force_img_path == None: 
         img_path = screenshot(temp_img_name)
     else:
         img_path = force_img_path
-    for color_coords_pair in compared_color_and_coords:
-        compare_color_from_screenshot_and_tap(color_coords_pair[0],color_coords_pair[1],force_img_path,on_same) 
+    for index,color_coords_pair in enumerate(compared_color_and_coords):
+        if compare_color_from_screenshot_and_tap(color_coords_pair[0],color_coords_pair[1],force_img_path,on_same):
+            ids.append(index)
     if os.path.exists(temp_img_name) and force_img_path == None: os.remove(img_path)
+    return [len(ids)>0,ids]
 
 # ================== ZOOM (BOT FRIENDLY) ==================
 
