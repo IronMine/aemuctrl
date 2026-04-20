@@ -144,6 +144,10 @@ def recent(wait=0): return press_key("KEYCODE_APP_SWITCH", wait)
 
 # ================== APPS ==================
 
+def list_apps(wait: float = 0):
+    """Launches an app by package name."""
+    return _run("shell pm list packages -3", wait)
+
 def open_app(package: str, wait: float = 0):
     """Launches an app by package name."""
     return _run(f"shell monkey -p {package} -c android.intent.category.LAUNCHER 1", wait)
